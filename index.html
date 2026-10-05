@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Pixi.js - Demo Goal Game</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 24px;
+      background: var(--page);
+      color: var(--text);
+      font-family: sans-serif;
+    }
+    /* accordion theo palette, nền surface, viền frame */
+    .accordion {
+      width: min(900px, 100%);
+      --bs-accordion-bg: var(--surface);
+      --bs-accordion-color: var(--text);
+      --bs-accordion-border-color: var(--frame);
+      --bs-accordion-btn-color: var(--text);
+      --bs-accordion-active-bg: var(--grid);
+      --bs-accordion-active-color: var(--text);
+      --bs-accordion-btn-focus-box-shadow: 0 0 0 2px var(--focus);
+    }
+    .future, .test {
+      text-align: left;
+      line-height: 1.45;
+    }
+    .future h2, .test h2 { 
+        font-size: 16px; 
+        margin: 16px 0 6px; 
+    }
+    .future ul, .test ol { 
+        margin: 0; 
+        padding-left: 20px; 
+    }
+    .future li, .test li { 
+        margin: 4px 0; 
+    }
+    .test p {
+        margin: 4px 0 12px;
+    }
+    #app canvas { 
+        display: block; 
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.5);
+        margin: 8px;
+        padding: 8px;
+        background: var(--frame);
+        border: 1px solid var(--frame-border);
+    }
+  </style>
+  <!-- CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.18.1/pixi.min.js"></script>
+  <script src="https://unpkg.com/@pixi/sound@6.0.1/dist/pixi-sound.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js"></script>
+  <script src="asset/js/palette.js"></script>
+  <script src="asset/js/data.js"></script>
+  <script src="asset/js/animation.js"></script>
+  <script src="asset/js/sound.js"></script>
+  <script src="asset/js/history.js"></script>
+  <script src="asset/js/main.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    <div class="accordion" id="notes" data-bs-theme="dark">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#features" aria-expanded="true" aria-controls="features">Tính năng đã làm</button>
+            </h2>
+            <div id="features" class="accordion-collapse collapse" data-bs-parent="#notes">
+                <div class="accordion-body future">
+                    <h2>Board</h2>
+                    <ul>
+                        <li>Vẽ bàn, dòng POINTS và thanh dưới trên một canvas. Kết quả: bàn nằm giữa trang.</li>
+                    </ul>
+                    <h2>Field và bet</h2>
+                    <ul>
+                        <li>Chọn Small 3×6, Medium 4×7, Large 5×8. Kết quả: số ô đổi, khung ngoài giữ cỡ Medium.</li>
+                        <li>Gõ bet, bấm + − hoặc chọn trong menu. Kết quả: bet nhảy theo mốc, mốc lớn hơn POINTS thì tắt.</li>
+                    </ul>
+                    <h2>Gird và boom</h2>
+                    <ul>
+                        <li>BET mở cột đầu. Mỗi cột bấm một ô rồi sang cột kế. Kết quả: nút thành Cash Out, field và ô bet khóa đến khi reset.</li>
+                        <li>Mỗi cột một boom, random lúc BET. Kết quả: thua thì hiện hết boom và cột chưa đi đỏ nhạt. Thắng thì chỉ hiện boom.</li>
+                    </ul>
+                    <h2>Điểm</h2>
+                    <ul>
+                        <li>BET trừ bet trên POINTS ngay. Thua không trừ lần hai. Cash Out cộng đúng số trên nút. Kết quả: POINTS 300, bet 0.10, Cash Out 0.25 thì còn 300.15.</li>
+                        <li>Đi hết cột cuối thì tự cash out. Kết quả: không cần bấm nút, POINTS vẫn cộng số Cash Out.</li>
+                    </ul>
+                    <h2>Lưu điểm</h2>
+                    <ul>
+                        <li>Ghi số dư và lịch sử xuống json qua server. Kết quả: thắng, thua và Thêm Point được lưu. BET và reset giữa ván không lưu. Reload giữa ván trả lại số trong file.</li>
+                    </ul>
+                    <h2>Popup</h2>
+                    <ul>
+                        <li>Hiện kết quả thắng hoặc thua. Kết quả: thấy bet, Win hoặc Lose, và POINTS khớp POINTS.</li>
+                        <li>BET khi không đủ điểm. Kết quả: còn từ 0.10 thì được All in. Dưới 0.10 thì được Thêm 100 Point.</li>
+                    </ul>
+                    <h2>Lật ô</h2>
+                    <ul>
+                        <li>Ô vừa bấm lật dọc rồi đổi màu. Kết quả: ô an toàn vàng, ô boom đỏ. Popup mở sau khi lật xong.</li>
+                    </ul>
+                    <h2>Hút point</h2>
+                    <ul>
+                        <li>Mảnh bay từ POINTS xuống bet lúc BET, và từ Cash Out lên POINTS lúc thắng. Kết quả: chữ đích nhích nhẹ rồi mảnh mất. Reset thì mảnh tắt. Thua không bay lên.</li>
+                    </ul>
+                    <h2>Âm thanh</h2>
+                    <ul>
+                        <li>Nút loa ở góc phải, ngang title. Kết quả: mặc định là loa mở. Bấm vào thì có gạch, tắt cả nhạc nền và tiếng hiệu ứng.</li>
+                        <li>Nhạc nền bgSound phát sau cú bấm đầu, mức 40%, và lặp lại. Kết quả: vừa mở trang thì im. Bấm một lần thì nhạc chạy.</li>
+                        <li>Tiếng gắn theo tên file. Kết quả: BET nghe coin, ô an toàn nghe click, trúng boom nghe boom, thắng nghe win, các nút còn lại nghe btn. Bấm một cái thì file phát hết. Bấm tiếp thì cắt tiếng cũ rồi phát tiếng mới.</li>
+                    </ul>
+                    <h2>Theme</h2>
+                    <ul>
+                        <li>Có 3 bộ màu Emerald, Midnight, Burgundy, dùng chung một bộ key trong palette.js. Kết quả: canvas, nền trang, khung và accordion đổi cùng màu.</li>
+                        <li>3 chấm tròn sát mép phải, canh giữa lưới, màu là màu chủ đạo của từng theme. Kết quả: theme đang dùng có viền trắng. Bấm chấm khác thì trang tải lại với ?theme=tên, POINTS và history giữ nguyên.</li>
+                        <li>Trong ván thì khóa đổi theme. Kết quả: 3 chấm mờ, bấm không có gì. Sau reset bấm lại được. Mở bằng start-game.command thì về Emerald.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#cases" aria-expanded="false" aria-controls="cases">Test case</button>
+            </h2>
+            <div id="cases" class="accordion-collapse collapse" data-bs-parent="#notes">
+                <div class="accordion-body test">
+                    <h2>1. Mở game</h2>
+                    <ol>
+                        <li>Mở bằng start-game.command.</li>
+                        <li>Bấm một ô khi chưa BET.</li>
+                    </ol>
+                    <p>Kết quả: POINTS bằng số trong balance.json, không có file thì 300. Medium, Next 1.00x, bet 0.10, BET sáng, reset mờ. Ô không đổi màu.</p>
+                    <h2>2. Field</h2>
+                    <ol>
+                        <li>Chọn Small, rồi Large, rồi Medium.</li>
+                        <li>BET, bấm Field, rồi reset và chọn Field lại.</li>
+                    </ol>
+                    <p>Kết quả: lưới lần lượt 3×6, 5×8, 4×7. Khung ngoài không đổi. Trong ván Field mờ. Sau reset chọn lại được.</p>
+                    <h2>3. Bet</h2>
+                    <ol>
+                        <li>Từ 0.10 bấm + một lần, rồi + đến 200.</li>
+                        <li>Mở menu, chọn 20. Gõ 15 rồi Enter. Mở menu và bấm ra ngoài.</li>
+                    </ol>
+                    <p>Kết quả: − tắt ở 0.10, + tắt ở 200. Ô thành 20.00 rồi 15.00. Menu tắt khi bấm ra ngoài. Mốc lớn hơn POINTS thì tắt.</p>
+                    <h2>4. BET</h2>
+                    <ol>
+                        <li>Ghi số POINTS. Đặt bet 0.10 và bấm BET.</li>
+                    </ol>
+                    <p>Kết quả: POINTS giảm 0.10 ngay. Mảnh bay từ số POINTS xuống ô bet, số bet nhích rồi mảnh mất. Cột đầu sáng. Cash Out 0.00 và đang tắt. Field, ô bet, + − khóa. Reset sáng.</p>
+                    <h2>5. Ô an toàn</h2>
+                    <ol>
+                        <li>Bấm một ô không boom ở cột đang sáng.</li>
+                        <li>Bấm ô khác trong cột vừa đi, rồi bấm một ô an toàn ở cột kế.</li>
+                    </ol>
+                    <p>Kết quả: ô lật dọc rồi vàng. Cash Out thành 0.12, rồi 0.25. Cột kế sáng. Ô đã đi không bấm lại được.</p>
+                    <h2>6. Cash Out</h2>
+                    <ol>
+                        <li>Khi Cash Out đang 0.25, bấm nút.</li>
+                        <li>Bấm Đóng trên popup.</li>
+                    </ol>
+                    <p>Kết quả: mảnh bay từ nút lên POINTS, dòng POINTS nhích. POINTS cộng đúng 0.25, ví dụ 300 thành 300.15. Popup Thắng hiện Win +0.25 và POINTS khớp POINTS. Boom đỏ, cột đã đi không đỏ nhạt. Nút về BET. Popup tắt.</p>
+                    <h2>7. Reload</h2>
+                    <ol>
+                        <li>BET, chưa Cash Out, rồi reload.</li>
+                        <li>Chơi một ván thắng hoặc thua, rồi reload lại.</li>
+                    </ol>
+                    <p>Kết quả: reload giữa ván trả POINTS về số trong file, ván mất, history không thêm. Sau thắng hoặc thua, reload vẫn đúng số mới và history có thêm một dòng.</p>
+                    <h2>8. Thua</h2>
+                    <ol>
+                        <li>Ghi POINTS và bet. BET, rồi bấm đúng ô boom.</li>
+                    </ol>
+                    <p>Kết quả: ô lật rồi đỏ. Các boom khác đỏ. Cột vừa bấm và cột chưa đi đỏ nhạt. POINTS không giảm thêm. Popup Thua, Lose bằng −bet, POINTS khớp POINTS. Next về 1.00x. Không có mảnh bay lên. Nút về BET.</p>
+                    <h2>9. Hết cột</h2>
+                    <ol>
+                        <li>BET. Mỗi cột bấm một ô không boom, đến cột cuối.</li>
+                    </ol>
+                    <p>Kết quả: không cần bấm Cash Out. Ô cuối lật, mảnh bay lên POINTS, rồi popup Thắng. Boom hiện đỏ. Nút về BET.</p>
+                    <h2>10. Reset giữa ván</h2>
+                    <ol>
+                        <li>BET. Có thể mở một ô. Bấm reset, kể cả lúc mảnh còn đang bay.</li>
+                    </ol>
+                    <p>Kết quả: bet được trả lại POINTS. History và balance.json không đổi. Lưới về xanh. Reset mờ. Field và ô bet bấm lại được. Mảnh đang bay thì tắt.</p>
+                    <h2>11. Không đủ điểm</h2>
+                    <ol>
+                        <li>Đưa bet lên 200. Thua đến khi POINTS nhỏ hơn bet nhưng còn từ 0.10.</li>
+                        <li>Bấm BET, rồi Chọn lại.</li>
+                        <li>Bấm BET, bấm All in, rồi BET lần nữa.</li>
+                    </ol>
+                    <p>Kết quả: popup "Số POINTS của bạn không đủ." Chọn lại tắt popup và mở khóa như reset. All in điền hết POINTS vào ô bet. Ván sau chơi bằng số đó.</p>
+                    <h2>12. All in</h2>
+                    <ol>
+                        <li>All in khi POINTS nhỏ hơn mức bet cũ. Cash Out cho POINTS lớn hơn mức cũ.</li>
+                        <li>All in lại, Cash Out nhưng POINTS vẫn nhỏ hơn mức cũ.</li>
+                        <li>All in rồi thua.</li>
+                    </ol>
+                    <p>Kết quả: thắng và POINTS lớn hơn mức cũ thì bet trả mức cũ. Còn nhỏ hơn thì bet về mốc gần nhất không vượt POINTS. Thua thì bet về 0.10.</p>
+                    <h2>13. Hết điểm</h2>
+                    <ol>
+                        <li>Thua đến khi POINTS dưới 0.10. Bấm BET.</li>
+                        <li>Bấm Thêm 100 Point.</li>
+                    </ol>
+                    <p>Kết quả: popup "Bạn đã hết POINTS." POINTS cộng 100, balance.json tăng 100, history không thêm. Ô bet chỉnh giống lúc thắng All in.</p>
+                    <h2>14. Âm thanh</h2>
+                    <ol>
+                        <li>Mở trang, chưa bấm gì.</li>
+                        <li>Bấm BET. Bấm vài ô an toàn liên tiếp, rồi bấm đúng ô boom.</li>
+                        <li>Chơi lại một ván và bấm Cash Out.</li>
+                        <li>Bấm nút loa, rồi bấm lại lần nữa.</li>
+                    </ol>
+                    <p>Kết quả: lúc mới mở không có nhạc. Sau cú bấm đầu nghe bgSound. BET nghe coin, ô an toàn nghe click, boom nghe boom, Cash Out nghe win. Bấm liên tiếp thì tiếng trước bị cắt, tiếng mới phát hết nếu không bấm nữa. Loa có gạch thì nhạc và tiếng tắt. Bấm lại thì loa mở và tiếng chạy lại.</p>
+                    <h2>15. Theme</h2>
+                    <ol>
+                        <li>Mở bằng start-game.command. Ghi POINTS và số ván trong History.</li>
+                        <li>Bấm chấm Emerald đang có viền trắng.</li>
+                        <li>Bấm chấm Midnight, rồi chấm Burgundy.</li>
+                        <li>Ở Burgundy, BET rồi bấm đúng ô boom.</li>
+                        <li>BET, thử bấm một chấm theme. Bấm reset, rồi bấm chấm Emerald.</li>
+                    </ol>
+                    <p>Kết quả: mới mở là Emerald, url không có ?theme. Bấm chấm đang dùng thì không có gì. Bấm chấm khác thì trang tải lại, url có ?theme=midnight hoặc ?theme=burgundy, canvas, nền trang, khung và accordion đổi màu, viền trắng nằm ở chấm mới. POINTS và History giống lúc ghi. Ở Burgundy, cột chưa đi đỏ nhạt thấy rõ khác ô thường. Trong ván 3 chấm mờ và bấm không đổi. Sau reset thì đổi được về Emerald.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
